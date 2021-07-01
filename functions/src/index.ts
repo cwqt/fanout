@@ -5,6 +5,11 @@ import fetch, { HeaderInit } from "node-fetch";
 
 initializeApp(functions.config().firebase);
 
+const WEBHOOK_ADDRESSES = {
+  Mux: `/mux/hooks`,
+  Stripe: `/stripe/hooks`,
+} as const;
+
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 // HoF wrapper for some error handling convenience
@@ -38,21 +43,22 @@ export const endpoints = functions.https.onRequest(
   routes({
     // POST webhooks.stageup.com/endpoints?url=https://su-123.stageup.uk
     POST: async (req, res) => {
-      const url = checkURL(req.query.url?.toString());
-
-      functions.logger.info(`Registering webhook urls: ${url}`, { structuredData: true });
+      let url = checkURL(req.query.url?.toString());
+      functions.logger.info(`Registering webhook url: ${url}`, { structuredData: true });
 
       // Don't allow duplicates because it'll cause multiple fan-outs of the same webhooks
       const urls = await firestore().collection("endpoints").where("url", "==", url).get();
       if (urls.docs.length) throw new Error(`${url} already exists`);
+
+      // Must not end with /, because we then tack on the webhook address in the fan-out
+      if (url.endsWith("/")) url = url.slice(0, -1);
 
       return { _id: (await firestore().collection("endpoints").add({ url: url })).id };
     },
     // DELETE webhooks.stageup.com/endpoints?url=https://su-123.stageup.uk
     DELETE: async (req, res) => {
       const url = checkURL(req.query.url?.toString());
-
-      functions.logger.info(`Destroying webhooks address`, { structuredData: true });
+      functions.logger.info(`Destroying webhook url: ${url}`, { structuredData: true });
 
       // Check if it exists before we try and delete it
       const endpoints = await firestore().collection("endpoints").where("url", "==", url).get();
@@ -68,9 +74,14 @@ export const mux = functions.https.onRequest(
     // POST webhooks.stageup.uk/mux --> fan-out to su-xxx.stageup.uk et al.
     POST: async (req, res) => {
       const { docs: endpoints } = await firestore().collection("endpoints").get();
+      // .allSettled because some endpoints could fail
       await Promise.allSettled(
         endpoints.map((endpoint) => {
-          fetch(endpoint.data().url, { headers: req.headers as HeaderInit, body: req.body, method: "POST" });
+          fetch(`${endpoint.data().url}${WEBHOOK_ADDRESSES.Mux}`, {
+            headers: req.headers as HeaderInit,
+            body: req.body,
+            method: "POST",
+          });
         })
       );
     },
