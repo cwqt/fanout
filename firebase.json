@@ -6,6 +6,22 @@
   "functions": {
     "predeploy": "npm --prefix functions run build"
   },
+  "hosting": {
+    "rewrites": [
+      {
+        "source": "/ping",
+        "function": "ping"
+      },
+      {
+        "source": "/endpoints",
+        "function": "endpoints"
+      },
+      {
+        "source": "/mux",
+        "function": "mux"
+      }
+    ]
+  },
   "emulators": {
     "functions": {
       "port": 5001

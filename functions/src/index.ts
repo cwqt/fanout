@@ -8,8 +8,6 @@ initializeApp(functions.config().firebase);
 // See README.md for setting up API_KEY
 const API_KEY = functions.config().webhooks.api_key;
 
-console.log(API_KEY);
-
 const WEBHOOK_ADDRESSES = {
   Mux: `/mux/hooks`,
   Stripe: `/stripe/hooks`,
