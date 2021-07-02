@@ -46,8 +46,8 @@ const router = (
   };
 };
 
-// Alias for setting fns in eu-west2
-const api = functions.region("europe-west2").https;
+// Alias
+const api = functions.https;
 
 // GET webhooks.stageup.uk/ping
 export const ping = api.onRequest(router({ GET: async (req, res) => "Pong!" }));
