@@ -8,6 +8,8 @@ initializeApp(functions.config().firebase);
 // See README.md for setting up API_KEY
 const API_KEY = functions.config().webhooks.api_key;
 
+console.log(API_KEY);
+
 const WEBHOOK_ADDRESSES = {
   Mux: `/mux/hooks`,
   Stripe: `/stripe/hooks`,
@@ -21,7 +23,7 @@ const validate = (
 ): ((req: functions.https.Request, res: functions.Response) => Promise<void>) => {
   return async (req, res) => {
     if (API_KEY === req.query.api_key) {
-      return await fn(req, res);
+      return fn(req, res);
     } else {
       res.status(401).json({ error: "api_key is not valid" });
     }
@@ -46,8 +48,11 @@ const router = (
   };
 };
 
+// Alias for setting fns in eu-west2
+const api = functions.region("europe-west2").https;
+
 // GET webhooks.stageup.uk/ping
-export const ping = functions.https.onRequest(router({ GET: async (req, res) => "Pong!" }));
+export const ping = api.onRequest(router({ GET: async (req, res) => "Pong!" }));
 
 const checkURL = (url: string | undefined) => {
   if (!url) throw new Error("Requires 'url' query parameter to register endpoint");
@@ -55,11 +60,13 @@ const checkURL = (url: string | undefined) => {
   return url;
 };
 
-const api = functions.region("europe-west2").https;
-
 export const endpoints = api.onRequest(
   router({
-    GET: async (req, res) => {},
+    // GET POST webhooks.stageup.com/endpoints
+    GET: async (req, res) => {
+      const urls = await firestore().collection("endpoints").get();
+      return urls.docs.map((doc) => doc.data().url);
+    },
     // POST webhooks.stageup.com/endpoints?url=https://su-123.stageup.uk
     POST: validate(async (req, res) => {
       let url = checkURL(req.query.url?.toString());

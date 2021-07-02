@@ -59,6 +59,7 @@ Add entry to <https://dashboard.mux.com/organizations/2p9g5i/settings/webhooks> 
 
 ## API
 
+- **GET** `/endpoints`: Return all current endpoints
 - **POST** `/endpoints`: Add a URL to the fan-out list
   - `?url`: url to add to fan-out list, e.g. `https://su-134.stageup.uk`
   - `?api_key`: known shared key for authenticating requests
