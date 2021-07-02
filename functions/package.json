@@ -4,6 +4,7 @@
     "start": "run-p start:*",
     "start:firebase": "firebase emulators:start",
     "start:functions": "tsc --watch --preserveWatchOutput",
+    "build": "tsc",
     "logs": "firebase functions:log"
   },
   "engines": {

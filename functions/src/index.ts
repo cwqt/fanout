@@ -5,6 +5,9 @@ import fetch, { HeaderInit } from "node-fetch";
 
 initializeApp(functions.config().firebase);
 
+// See README.md for setting up API_KEY
+const API_KEY = functions.config().webhooks.api_key;
+
 const WEBHOOK_ADDRESSES = {
   Mux: `/mux/hooks`,
   Stripe: `/stripe/hooks`,
@@ -12,8 +15,21 @@ const WEBHOOK_ADDRESSES = {
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-// HoF wrapper for some error handling convenience
-const routes = (
+// HoF for validating API tokens in request
+const validate = (
+  fn: (req: functions.https.Request, res: functions.Response) => Promise<any>
+): ((req: functions.https.Request, res: functions.Response) => Promise<void>) => {
+  return async (req, res) => {
+    if (API_KEY === req.query.api_key) {
+      return await fn(req, res);
+    } else {
+      res.status(401).json({ error: "api_key is not valid" });
+    }
+  };
+};
+
+// HoF wrapper for routing & error handling convenience
+const router = (
   methods: Partial<
     Record<HttpMethod, (req: functions.https.Request, res: functions.Response) => Promise<string | Object | void>>
   >
@@ -31,7 +47,7 @@ const routes = (
 };
 
 // GET webhooks.stageup.uk/ping
-export const ping = functions.https.onRequest(routes({ GET: async (req, res) => "Pong!" }));
+export const ping = functions.https.onRequest(router({ GET: async (req, res) => "Pong!" }));
 
 const checkURL = (url: string | undefined) => {
   if (!url) throw new Error("Requires 'url' query parameter to register endpoint");
@@ -39,10 +55,13 @@ const checkURL = (url: string | undefined) => {
   return url;
 };
 
-export const endpoints = functions.https.onRequest(
-  routes({
+const api = functions.region("europe-west2").https;
+
+export const endpoints = api.onRequest(
+  router({
+    GET: async (req, res) => {},
     // POST webhooks.stageup.com/endpoints?url=https://su-123.stageup.uk
-    POST: async (req, res) => {
+    POST: validate(async (req, res) => {
       let url = checkURL(req.query.url?.toString());
       functions.logger.info(`Registering webhook url: ${url}`, { structuredData: true });
 
@@ -54,9 +73,9 @@ export const endpoints = functions.https.onRequest(
       if (url.endsWith("/")) url = url.slice(0, -1);
 
       return { _id: (await firestore().collection("endpoints").add({ url: url })).id };
-    },
+    }),
     // DELETE webhooks.stageup.com/endpoints?url=https://su-123.stageup.uk
-    DELETE: async (req, res) => {
+    DELETE: validate(async (req, res) => {
       const url = checkURL(req.query.url?.toString());
       functions.logger.info(`Destroying webhook url: ${url}`, { structuredData: true });
 
@@ -65,14 +84,16 @@ export const endpoints = functions.https.onRequest(
       if (!endpoints.docs.length) throw new Error(`${url} does not exist`);
 
       await Promise.all(endpoints.docs.map((e) => e.ref.delete()));
-    },
+    }),
   })
 );
 
-export const mux = functions.https.onRequest(
-  routes({
+export const mux = api.onRequest(
+  router({
     // POST webhooks.stageup.uk/mux --> fan-out to su-xxx.stageup.uk et al.
     POST: async (req, res) => {
+      functions.logger.info(`Recieved MUX webhook: ${req.body}`, { structuredData: true });
+
       const { docs: endpoints } = await firestore().collection("endpoints").get();
       // .allSettled because some endpoints could fail
       await Promise.allSettled(
@@ -81,6 +102,7 @@ export const mux = functions.https.onRequest(
             headers: req.headers as HeaderInit,
             body: req.body,
             method: "POST",
+            timeout: 10000, // 10 seconds
           });
         })
       );
