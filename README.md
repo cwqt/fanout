@@ -6,17 +6,17 @@ See <https://github.com/muxinc/mux-node-sdk/issues/12>
 Makes no attempt to re-try requests, if a down-stream site fails, then tough luck.
 
 ```
-                      +---------------+
-mux.com  stripe.com   | Github Action | Register/destroy the domain
-  |         |         +---------------+ POST   /endpoints?url=...&api_key=...
-  |         |               |           DELETE /endpoints?url=...&api_key=...
+                      +---------------+ Register/destroy the domain
+mux.com  stripe.com   | Github Action | POST   /endpoints?url=...&api_key=...
+  |         |         +---------------+ DELETE /endpoints?url=...&api_key=...
+  |         |               |
   v         v               v
 +----------------------------------+      /-----------\
 | webhooks.stageup.uk/(mux|stripe) + <--> | Firestore |
 +----------------------------------+      \-----------/
-           |       |       |                       Look-up where to fan
-           v       v       v                       out webhooks to
-       su-345  su-145  su-778.stageup.uk
+        |       |       |               Look-up where to fan
+        v       v       v               out webhooks to
+    su-345  su-145  su-778.stageup.uk
 ```
 
 Has support for:
@@ -55,8 +55,6 @@ Add entry to <https://dashboard.mux.com/organizations/2p9g5i/settings/webhooks> 
 
 ![](fanout.png)
 
----
-
 ## API
 
 - **GET** `/endpoints`: Return all current endpoints
@@ -68,8 +66,6 @@ Add entry to <https://dashboard.mux.com/organizations/2p9g5i/settings/webhooks> 
   - `?api_key`: known shared key for authenticating requests
 - **POST** `/mux`: Endpoint for MUX to send webhooks to for them to be forwarded to known endpoints
 - **POST** `/stripe`: Not yet implemented
-
----
 
 ## Contributing
 
