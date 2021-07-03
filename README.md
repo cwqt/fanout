@@ -1,7 +1,8 @@
 # Webhooks
 
-Dead simple proxy to fan-out webhooks to feature deployed branches - since we can't make webhooks on-the-fly for endpoints in Terraform.
-See <https://github.com/muxinc/mux-node-sdk/issues/12>
+Dead simple proxy to fan-out webhooks to deployed feature branches / development ngrok/localtunnel addresses. Uses Cloud Functions & Firestore.
+
+Made partially because we can't make webhooks on-the-fly for endpoints for MUX using Terraform, see: <https://github.com/muxinc/mux-node-sdk/issues/12>
 
 Makes no attempt to re-try requests, if a down-stream site fails, then tough luck.
 

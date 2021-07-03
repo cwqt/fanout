@@ -114,11 +114,13 @@ export const mux = api.onRequest(
             return await fetch(url, {
               headers: {
                 ["mux-signature"]: req.headers["mux-signature"] as string,
+                ["content-type"]: req.headers["content-type"] as string,
+                ["content-length"]: req.headers["content-length"] as string,
               },
               body: req.rawBody, // mux signature verification requires non-parsed body
               method: "POST",
               timeout: 10000, // 10 seconds
-            }).catch((e) => console.log(e));
+            });
           },
         ];
       });
