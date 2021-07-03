@@ -1,4 +1,5 @@
-# Webhooks
+# Webhooks &nbsp;<a href="https://console.firebase.google.com/project/core-314910/overview"><img alt="Firebase" src="https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase"/></a>
+
 
 Dead simple proxy to fan-out webhooks to deployed feature branches / development ngrok/localtunnel addresses. Uses Cloud Functions & Firestore.
 
@@ -7,9 +8,9 @@ Made partially because we can't make webhooks on-the-fly for endpoints for MUX u
 Makes no attempt to re-try requests, if a down-stream site fails, then tough luck.
 
 ```
-                      +---------------+ Register/destroy the domain
-mux.com  stripe.com   | Github Action | POST   /endpoints?url=...&api_key=...
-  |         |         +---------------+ DELETE /endpoints?url=...&api_key=...
+                      +---------------+  Register/destroy the domain
+mux.com  stripe.com   | Github Action |  POST   /endpoints?url=...&api_key=...
+  |         |         +---------------+  DELETE /endpoints?url=...&api_key=...
   |         |               |
   v         v               v
 +----------------------------------+      /-----------\
