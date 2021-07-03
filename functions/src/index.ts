@@ -54,7 +54,8 @@ export const ping = api.onRequest(router({ GET: async (req, res) => "Pong!" }));
 
 const checkURL = (url: string | undefined) => {
   if (!url) throw new Error("Requires 'url' query parameter to register endpoint");
-  if (!isUrl(url)) throw new Error("URL provided is not a valid address");
+  // No TLD - allow localhost:3000 etc.
+  if (!isUrl(url, { require_tld: false })) throw new Error("URL provided is not a valid address");
   return url;
 };
 
@@ -68,7 +69,7 @@ export const endpoints = api.onRequest(
     // POST webhooks.stageup.com/endpoints?url=https://su-123.stageup.uk
     POST: validate(async (req, res) => {
       let url = checkURL(req.query.url?.toString());
-      functions.logger.info(`Registering webhook url: ${url}`, { structuredData: true });
+      functions.logger.info(`Registering webhook url: ${url}`);
 
       // Don't allow duplicates because it'll cause multiple fan-outs of the same webhooks
       const urls = await firestore().collection("endpoints").where("url", "==", url).get();
@@ -82,7 +83,7 @@ export const endpoints = api.onRequest(
     // DELETE webhooks.stageup.com/endpoints?url=https://su-123.stageup.uk
     DELETE: validate(async (req, res) => {
       const url = checkURL(req.query.url?.toString());
-      functions.logger.info(`Destroying webhook url: ${url}`, { structuredData: true });
+      functions.logger.info(`Destroying webhook url: ${url}`);
 
       // Check if it exists before we try and delete it
       const endpoints = await firestore().collection("endpoints").where("url", "==", url).get();
@@ -97,20 +98,43 @@ export const mux = api.onRequest(
   router({
     // POST webhooks.stageup.uk/mux --> fan-out to su-xxx.stageup.uk et al.
     POST: async (req, res) => {
-      functions.logger.info(`Recieved MUX webhook: ${req.body}`, { structuredData: true });
+      functions.logger.info(`Recieved MUX webhook:`, req.body);
 
-      const { docs: endpoints } = await firestore().collection("endpoints").get();
+      const { docs } = await firestore().collection("endpoints").get();
+
+      // Setup map of [url, () => Promise<pending>]
+      const promises: Array<[string, () => Promise<any>]> = docs.map((doc) => {
+        const url = `${doc.data().url}${WEBHOOK_ADDRESSES.Mux}`;
+        functions.logger.info(`Forwarding to ${url}`);
+
+        return [
+          url,
+          // defer execution until inside allSettled
+          () =>
+            fetch(url, {
+              headers: req.headers as HeaderInit,
+              body: req.rawBody, // mux signature verification requires non-parsed body
+              method: "POST",
+              timeout: 10000, // 10 seconds
+            }),
+        ];
+      });
+
       // .allSettled because some endpoints could fail
-      await Promise.allSettled(
-        endpoints.map((endpoint) => {
-          fetch(`${endpoint.data().url}${WEBHOOK_ADDRESSES.Mux}`, {
-            headers: req.headers as HeaderInit,
-            body: req.body,
-            method: "POST",
-            timeout: 10000, // 10 seconds
-          });
-        })
-      );
+      const settlements = await Promise.allSettled(promises.map(async ([k, v]) => [k, await v()]));
+
+      // all the fulfilled responses
+      const successfulEndpoints: string[] = settlements
+        .filter((settlement) => settlement.status == "fulfilled")
+        .map((settlement) => (settlement as PromiseFulfilledResult<any>).value[0]);
+
+      // can't know what url this is because PromiseRejectedResult doesn't contain the value passed in
+      // so we can do an intersection to see which URL's aren't in successful responses to see the failed ones
+      const failedEndpoints: string[] = promises
+        .filter(([url]) => !successfulEndpoints.includes(url))
+        .map((promise) => promise[0]);
+
+      functions.logger.info("Fanout result:", { failed: failedEndpoints, successful: successfulEndpoints });
     },
   })
 );
