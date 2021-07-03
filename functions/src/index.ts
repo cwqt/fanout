@@ -105,23 +105,28 @@ export const mux = api.onRequest(
       // Setup map of [url, () => Promise<pending>]
       const promises: Array<[string, () => Promise<any>]> = docs.map((doc) => {
         const url = `${doc.data().url}${WEBHOOK_ADDRESSES.Mux}`;
-        functions.logger.info(`Forwarding to ${url}`);
 
         return [
           url,
           // defer execution until inside allSettled
-          () =>
-            fetch(url, {
-              headers: req.headers as HeaderInit,
+          async () => {
+            functions.logger.info(`Forwarding to ${url}`);
+            return await fetch(url, {
+              headers: {
+                ["mux-signature"]: req.headers["mux-signature"] as string,
+              },
               body: req.rawBody, // mux signature verification requires non-parsed body
               method: "POST",
               timeout: 10000, // 10 seconds
-            }),
+            }).catch((e) => console.log(e));
+          },
         ];
       });
 
       // .allSettled because some endpoints could fail
       const settlements = await Promise.allSettled(promises.map(async ([k, v]) => [k, await v()]));
+
+      settlements.forEach((settlement) => settlement.status == "rejected" && functions.logger.error(settlement.reason));
 
       // all the fulfilled responses
       const successfulEndpoints: string[] = settlements
