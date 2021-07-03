@@ -1,4 +1,5 @@
-# Webhooks
+# Webhooks &nbsp;<a href="https://console.firebase.google.com/project/core-314910/overview"><img alt="Firebase" src="https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase"/></a>
+
 
 Fan-out webhooks to feature deployed branches - since we can't make webhooks on-the-fly for endpoints.
 See <https://github.com/muxinc/mux-node-sdk/issues/12>
@@ -6,9 +7,9 @@ See <https://github.com/muxinc/mux-node-sdk/issues/12>
 Makes no attempt to re-try requests, if a down-stream site fails, then tough luck.
 
 ```
-                      +---------------+ Register/destroy the domain
-mux.com  stripe.com   | Github Action | POST   /endpoints?url=...&api_key=...
-  |         |         +---------------+ DELETE /endpoints?url=...&api_key=...
+                      +---------------+  Register/destroy the domain
+mux.com  stripe.com   | Github Action |  POST   /endpoints?url=...&api_key=...
+  |         |         +---------------+  DELETE /endpoints?url=...&api_key=...
   |         |               |
   v         v               v
 +----------------------------------+      /-----------\
