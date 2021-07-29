@@ -1,4 +1,4 @@
-# Webhooks &nbsp;<a href="https://console.firebase.google.com/project/core-314910/overview"><img alt="Firebase" src="https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase"/></a>
+# Serverless &nbsp;<a href="https://console.firebase.google.com/project/core-314910/overview"><img alt="Firebase" src="https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase"/></a>
 
 
 Dead simple proxy to fan-out webhooks to deployed feature branches / development ngrok/localtunnel addresses. Uses Cloud Functions & Firestore.
